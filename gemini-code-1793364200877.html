@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROBO KNIGHTS - Smart Buddy Testing Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- TensorFlow.js & Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        posterBg: '#73b2dd',       
+                        posterCard: '#b3d6f1',     
+                        posterDarkCard: '#3f6b97', 
+                        posterNavy: '#1e3d60',     
+                        posterYellow: '#f3b21b',   
+                        posterOrange: '#ff6f28',   
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&display=swap');
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #73b2dd;
+        }
+        .poster-glow {
+            box-shadow: 0 10px 25px -5px rgba(30, 61, 96, 0.25);
+        }
+    </style>
+</head>
+<body class="text-posterNavy min-h-screen pb-12">
+
+    <!-- OVERLAY POPUP UNLOCK AUDIO (SOLUSI CHROME AUTOPLAY) -->
+    <div id="audioModal" onclick="unlockAudio()" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 cursor-pointer">
+        <div class="bg-white border-4 border-posterOrange p-8 rounded-3xl max-w-md text-center shadow-2xl animate-bounce">
+            <div class="w-16 h-16 bg-posterOrange text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <i data-lucide="volume-2" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-2xl font-black text-posterNavy mb-2">KLIK DI SINI DULU!</h2>
+            <p class="text-xs font-bold text-slate-500 mb-6">Google Chrome memerlukan 1 kali klik dari kamu agar laptop bisa mengeluarkan suara otomatis saat ESP32 tersambung.</p>
+            <button class="bg-posterOrange text-white font-black px-6 py-3 rounded-2xl text-sm shadow-md border-2 border-white">
+                Aktifkan Speaker Laptop 🔊
+            </button>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="bg-[#5c9ecf] border-b-4 border-white/60 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap justify-between items-center gap-4">
+            
+            <div class="flex items-center gap-3">
+                <div class="relative bg-white p-2.5 rounded-2xl shadow-md flex items-center justify-center cursor-pointer" onclick="putarMp3('001.mp3')">
+                    <i data-lucide="crown" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                    <i data-lucide="sparkles" class="w-4 h-4 text-posterYellow absolute -top-1 -right-1 animate-pulse"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-black text-xl sm:text-2xl text-white tracking-wider drop-shadow-sm">ROBO KNIGHTS</h1>
+                        <span class="text-xs font-black bg-posterYellow text-posterNavy px-2 py-0.5 rounded-full uppercase shadow-sm">Junior</span>
+                    </div>
+                    <p class="text-xs text-blue-100 font-bold tracking-wide">Smart Buddy Testing Hub</p>
+                </div>
+            </div>
+
+            <div class="flex bg-posterDarkCard p-1.5 rounded-2xl shadow-inner border border-white/20">
+                <button id="btnTabAi" onclick="switchTab('ai')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 bg-white text-posterNavy shadow-md">
+                    <i data-lucide="camera" class="w-4 h-4 text-posterOrange"></i>
+                    Teachable Machine
+                </button>
+                <button id="btnTabDb" onclick="switchTab('db')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 text-white hover:text-posterYellow">
+                    <i data-lucide="database" class="w-4 h-4 text-posterYellow"></i>
+                    Firebase Realtime DB
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 pt-6 space-y-6">
+        
+        <!-- STATUS AUDIOPLAYER MONITOR -->
+        <div class="bg-white border-2 border-white p-4 rounded-2xl shadow-md flex items-center justify-between px-6">
+            <div class="flex items-center gap-3">
+                <i data-lucide="disc" class="w-6 h-6 text-posterOrange animate-spin"></i>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Monitor Audio Realtime:</p>
+                    <p id="statusAudioLabel" class="text-xs font-black text-posterNavy">Siap memutar suara...</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="putarMp3('001.mp3')" class="bg-posterCard hover:bg-blue-200 text-posterNavy text-xs font-black px-3 py-1.5 rounded-xl border border-white shadow transition">
+                    Tes Intro
+                </button>
+                <button onclick="putarMp3('005.mp3')" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black px-3 py-1.5 rounded-xl border border-white shadow transition">
+                    Tes Benar
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 1: TEACHABLE MACHINE CAMERA TEST -->
+        <div id="tabAiVision" class="space-y-6">
+            <div class="text-center py-2">
+                <h2 class="text-2xl sm:text-3xl font-black text-white flex items-center justify-center gap-2 drop-shadow">
+                    <i data-lucide="sparkles" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                    Teachable Machine Camera Test
+                    <i data-lucide="sparkles" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                </h2>
+                <p class="text-xs sm:text-sm text-blue-100 font-bold mt-1">Deteksi Otomatis Kartu Angka (1–5) & Huruf (A–E) via Kamera Laptop</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div class="lg:col-span-7 bg-posterCard border-4 border-white rounded-3xl p-4 sm:p-6 shadow-xl poster-glow">
+                    <div class="relative w-full aspect-video bg-posterDarkCard rounded-2xl overflow-hidden border-2 border-white/80 flex items-center justify-center">
+                        <div id="webcam-container" class="w-full h-full flex items-center justify-center"></div>
+                        <div id="placeholderView" class="text-center p-6 text-white">
+                            <i data-lucide="sparkles" class="w-12 h-12 text-posterYellow mx-auto mb-2 animate-bounce"></i>
+                            <p class="font-extrabold text-base sm:text-lg">Kamera belum aktif</p>
+                            <p class="text-xs text-blue-100 mt-1">Masukkan URL model Teachable Machine lalu tekan 'Nyalakan kamera'</p>
+                        </div>
+                        <div id="liveDetectionBox" class="hidden absolute top-4 left-4 bg-posterOrange text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white">
+                            <span id="liveDetectedLabel">DETECTING...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-4 bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow">
+                    <div id="modelStatusBox" class="w-full bg-white border-2 border-[#b3d6f1] rounded-2xl py-3 px-4 text-center font-extrabold text-posterNavy text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm">
+                        <i data-lucide="crown" class="w-5 h-5 text-posterYellow fill-posterYellow"></i>
+                        <span>Model belum dimuat</span>
+                    </div>
+
+                    <div class="bg-white border-2 border-[#b3d6f1] rounded-2xl p-4 shadow-sm">
+                        <div class="flex justify-between text-xs sm:text-sm font-extrabold text-posterNavy mb-2">
+                            <span class="flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-posterYellow fill-posterYellow"></i>
+                                Akurasi Deteksi AI:
+                            </span>
+                            <span id="accuracyPercent" class="text-posterOrange">0%</span>
+                        </div>
+                        <div class="w-full bg-blue-100 h-4 rounded-full overflow-hidden p-0.5 border border-blue-200">
+                            <div id="accuracyBar" class="bg-posterOrange h-full w-0% rounded-full transition-all duration-200"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="startCamBtn" onclick="initTeachableMachine()" class="bg-posterOrange hover:bg-orange-600 text-white font-black text-sm py-3.5 px-4 rounded-2xl transition shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 border-2 border-white">
+                            Nyalakan kamera
+                        </button>
+                        <button id="stopCamBtn" onclick="stopCamera()" class="bg-posterDarkCard hover:bg-blue-900 text-white font-black text-sm py-3.5 px-4 rounded-2xl transition flex items-center justify-center gap-2 border-2 border-white">
+                            Matikan kamera
+                        </button>
+                    </div>
+
+                    <div class="space-y-1.5 pt-1">
+                        <label class="text-xs font-black text-posterNavy flex items-center gap-1">
+                            URL Model Teachable Machine
+                        </label>
+                        <input type="text" id="modelUrlInput" value="https://teachablemachine.withgoogle.com/models/WJFNWZr2Q/" 
+                            class="w-full bg-white border-2 border-blue-200 focus:border-posterOrange text-posterNavy text-xs sm:text-sm font-bold rounded-2xl px-4 py-3 outline-none transition shadow-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow">
+                <h3 class="text-sm font-black text-posterNavy mb-3 flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 text-posterOrange"></i>
+                    Rincian Deteksi Kartu AI (1–5 & A–E):
+                </h3>
+                <div id="label-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: FIREBASE DATABASE MONITOR -->
+        <div id="tabParentDb" class="hidden space-y-6">
+            <div class="text-center py-2">
+                <h2 class="text-2xl sm:text-3xl font-black text-white flex items-center justify-center gap-2 drop-shadow">
+                    <i data-lucide="database" class="w-7 h-7 text-posterYellow"></i>
+                    Firebase Realtime Database Monitor
+                </h2>
+                <p class="text-xs sm:text-sm text-blue-100 font-bold mt-1">Pemantauan data IoT dari robot Smart Little Buddy dan sinkronisasi live sesi belajar</p>
+            </div>
+
+            <div class="bg-white border-4 border-white p-4 sm:p-5 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4 poster-glow">
+                <div class="flex items-center gap-3">
+                    <div class="bg-posterCard p-3 rounded-2xl text-posterNavy">
+                        <i data-lucide="radio" class="w-7 h-7 animate-pulse text-posterOrange"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base sm:text-lg text-posterNavy flex items-center gap-2">
+                            Status Database: <span id="dbStatusBadge" class="text-emerald-600 font-black">Online 🟢</span>
+                        </h3>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="db.ref('/robot/kondisi').set('SOAL')" class="bg-posterDarkCard text-white text-xs font-black px-3 py-2 rounded-xl">Test Touch 1 (SOAL)</button>
+                    <button onclick="db.ref('/robot/kondisi').set('PETUNJUK')" class="bg-posterDarkCard text-white text-xs font-black px-3 py-2 rounded-xl">Test Touch 2 (PETUNJUK)</button>
+                    <button onclick="db.ref('/robot/kondisi').set('BENAR')" class="bg-emerald-500 text-white text-xs font-black px-3 py-2 rounded-xl">Test BENAR</button>
+                    <button onclick="db.ref('/robot/kondisi').set('SALAH')" class="bg-red-500 text-white text-xs font-black px-3 py-2 rounded-xl">Test SALAH</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-posterCard border-4 border-white p-4 sm:p-6 rounded-3xl shadow-xl poster-glow">
+                    <h3 class="font-black text-posterNavy flex items-center gap-2 mb-4 text-sm sm:text-base">
+                        <i data-lucide="database" class="w-5 h-5 text-posterOrange"></i>
+                        Tabel Live Log Firebase
+                    </h3>
+                    <div class="overflow-x-auto bg-white rounded-2xl border-2 border-blue-100 p-2 h-64 overflow-y-auto">
+                        <table class="w-full text-left text-xs sm:text-sm">
+                            <tbody id="sessionLogs" class="divide-y divide-blue-100 text-posterNavy font-bold"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-posterCard border-4 border-white p-4 sm:p-6 rounded-3xl shadow-xl poster-glow">
+                    <h3 class="font-black text-posterNavy flex items-center gap-2 mb-4 text-sm sm:text-base">
+                        <i data-lucide="bar-chart-2" class="w-5 h-5 text-posterOrange"></i>
+                        Grafik Akurasi
+                    </h3>
+                    <div class="relative w-full aspect-[16/9] sm:aspect-[2/1] bg-white p-3 rounded-2xl border-2 border-blue-100">
+                        <canvas id="masteryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // =========================================================================
+        // 1. PEMETAAN LENGKAP MP3 (BERDASARKAN FOTO FOLDER KAMU: 001.mp3 - 022.mp3)
+        // =========================================================================
+        const AUDIO_MAP = {
+            "INTRO": "001.mp3",       // Salam pembuka Smart Buddy
+            "SOAL": "003.mp3",        // Pertanyaan / Touch 1
+            "PETUNJUK": "003.mp3",    // Petunjuk / Touch 2
+            "BENAR": "005.mp3",       // Jawaban Benar (Variasi 1)
+            "BENAR2": "007.mp3",      // Jawaban Benar (Variasi 2)
+            "HAMPIR": "009.mp3",      // Jawaban Hampir Betul
+            "MODE_ANGKA": "010.mp3",  // Mode Angka Aktif
+            "1": "011.mp3",           // Kartu Angka 1
+            "2": "012.mp3",           // Kartu Angka 2
+            "3": "013.mp3",           // Kartu Angka 3
+            "4": "014.mp3",           // Kartu Angka 4
+            "5": "015.mp3",           // Kartu Angka 5
+            "A": "016.mp3",           // Kartu Huruf A
+            "B": "017.mp3",           // Kartu Huruf B
+            "C": "018.mp3",           // Kartu Huruf C
+            "D": "019.mp3",           // Kartu Huruf D
+            "E": "020.mp3",           // Kartu Huruf E
+            "SALAH": "021.mp3",       // Jawaban Salah / Belum tepat
+            "SELESAI": "022.mp3"      // Penutup Selesai
+        };
+
+        let globalAudio = new Audio();
+
+        function putarMp3(namaFile) {
+            const label = document.getElementById('statusAudioLabel');
+            label.innerText = "🔊 Memutar File: " + namaFile;
+
+            globalAudio.pause();
+            globalAudio.currentTime = 0;
+            globalAudio.src = namaFile;
+
+            globalAudio.play().then(() => {
+                console.log("Audio berhasil diputar:", namaFile);
+            }).catch(err => {
+                console.error("Gagal putar audio:", err);
+                label.innerText = "❌ File " + namaFile + " tidak ditemukan / terblokir!";
+            });
+        }
+
+        function unlockAudio() {
+            putarMp3(AUDIO_MAP["INTRO"]);
+            document.getElementById('audioModal').classList.add('hidden');
+        }
+
+        // =========================================================================
+        // 2. FIREBASE REALTIME DATABASE LISTENER
+        // =========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7CyKCslPjQod0vu-uEZWQaZD0msZNQRw",
+            authDomain: "smart-little-buddy-sgdrc.firebaseapp.com",
+            databaseURL: "https://smart-little-buddy-sgdrc-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smart-little-buddy-sgdrc",
+            storageBucket: "smart-little-buddy-sgdrc.firebasestorage.app",
+            messagingSenderId: "252258897796",
+            appId: "1:252258897796:web:ea72e344f005bc2619d7d1",
+            measurementId: "G-P627MDRYXG"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const logsRef = db.ref("learning_sessions");
+        const refKondisi = db.ref("/robot/kondisi");
+
+        let counterBenar = 0;
+
+        // DENGERIN DATA MASUK DARI ESP32 / FIREBASE
+        refKondisi.on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (!val) return;
+
+            const key = String(val).toUpperCase().trim();
+            console.log("📩 Firebase Kondisi Masuk:", key);
+
+            if (key === "SOAL") {
+                putarMp3(AUDIO_MAP["SOAL"]);
+            } else if (key === "PETUNJUK") {
+                putarMp3(AUDIO_MAP["PETUNJUK"]);
+            } else if (key === "BENAR") {
+                if (counterBenar === 0) putarMp3(AUDIO_MAP["BENAR"]);
+                else putarMp3(AUDIO_MAP["BENAR2"]);
+                counterBenar = (counterBenar + 1) % 2;
+            } else if (key === "SALAH") {
+                putarMp3(AUDIO_MAP["SALAH"]);
+            } else if (key === "HAMPIR") {
+                putarMp3(AUDIO_MAP["HAMPIR"]);
+            } else if (key === "SELESAI") {
+                putarMp3(AUDIO_MAP["SELESAI"]);
+            } else if (AUDIO_MAP[key]) {
+                putarMp3(AUDIO_MAP[key]);
+            }
+        });
+
+        // =========================================================================
+        // 3. TAB SWITCHING
+        // =========================================================================
+        function switchTab(tab) {
+            document.getElementById('tabAiVision').classList.toggle('hidden', tab !== 'ai');
+            document.getElementById('tabParentDb').classList.toggle('hidden', tab !== 'db');
+            if (tab === 'db') {
+                initChart();
+                listenFirebaseRealtime();
+                putarMp3(AUDIO_MAP["MODE_ANGKA"]);
+            }
+        }
+
+        // =========================================================================
+        // 4. TEACHABLE MACHINE KAMERA
+        // =========================================================================
+        let model, webcam, labelContainer, maxPredictions;
+        let isCameraOn = false;
+        let lastSyncedClass = "";
+
+        async function initTeachableMachine() {
+            putarMp3(AUDIO_MAP["INTRO"]);
+
+            let modelURLInput = document.getElementById('modelUrlInput').value.trim();
+            if (!modelURLInput) return alert("Masukkan URL!");
+            if (!modelURLInput.endsWith('/')) modelURLInput += '/';
+
+            const statusBox = document.getElementById('modelStatusBox');
+            statusBox.innerHTML = `Memuat model AI...`;
+
+            try {
+                model = await tmImage.load(modelURLInput + "model.json", modelURLInput + "metadata.json");
+                maxPredictions = model.getTotalClasses();
+                webcam = new tmImage.Webcam(400, 300, true); 
+                await webcam.setup(); 
+                await webcam.play();
+                window.requestAnimationFrame(loop);
+
+                document.getElementById('placeholderView').classList.add('hidden');
+                document.getElementById('webcam-container').appendChild(webcam.canvas);
+                
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
+                for (let i = 0; i < maxPredictions; i++) {
+                    const classCard = document.createElement("div");
+                    classCard.className = "bg-white p-2.5 rounded-2xl text-xs font-bold border border-blue-100 shadow-sm";
+                    labelContainer.appendChild(classCard);
+                }
+
+                document.getElementById('liveDetectionBox').classList.remove('hidden');
+                isCameraOn = true;
+                statusBox.innerText = "Model AI Berhasil Dimuat!";
+            } catch (err) {
+                alert("Gagal memuat model Teachable Machine.");
+            }
+        }
+
+        async function loop() {
+            if (isCameraOn) {
+                webcam.update();
+                await predict();
+                window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            let highestProb = 0;
+            let bestClass = "";
+
+            for (let i = 0; i < maxPredictions; i++) {
+                if (prediction[i].probability > highestProb) {
+                    highestProb = prediction[i].probability;
+                    bestClass = prediction[i].className;
+                }
+                
+                const probPercent = (prediction[i].probability * 100).toFixed(0);
+                labelContainer.childNodes[i].innerHTML = `
+                    <div class="flex justify-between font-black text-posterNavy mb-1">
+                        <span>Class: ${prediction[i].className}</span>
+                        <span class="text-posterOrange">${probPercent}%</span>
+                    </div>
+                `;
+            }
+
+            const mainProbPercent = (highestProb * 100).toFixed(0);
+            document.getElementById('accuracyPercent').innerText = `${mainProbPercent}%`;
+            document.getElementById('accuracyBar').style.width = `${mainProbPercent}%`;
+            document.getElementById('liveDetectedLabel').innerText = `${bestClass} (${mainProbPercent}%)`;
+
+            // Kirim ke Firebase jika deteksi sangat yakin (> 85%)
+            if (highestProb > 0.85 && bestClass !== lastSyncedClass) {
+                lastSyncedClass = bestClass;
+                
+                // Update kondisi Firebase agar ESP32 bereaksi
+                db.ref("/robot/kondisi").set(bestClass);
+
+                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                logsRef.push({
+                    time: `Realtime, ${now}`,
+                    module: `Card ${bestClass}`,
+                    accuracy: `${mainProbPercent}%`
+                });
+            }
+        }
+
+        function stopCamera() {
+            if (webcam && isCameraOn) {
+                putarMp3(AUDIO_MAP["SELESAI"]);
+                webcam.stop();
+                isCameraOn = false;
+                document.getElementById('webcam-container').innerHTML = "";
+                document.getElementById('placeholderView').classList.remove('hidden');
+                document.getElementById('liveDetectionBox').classList.add('hidden');
+            }
+        }
+
+        // =========================================================================
+        // 5. CHART & LOGS
+        // =========================================================================
+        let chartInitialized = false;
+        function initChart() {
+            if (chartInitialized) return;
+            const ctx = document.getElementById('masteryChart').getContext('2d');
+            new Chart(ctx, { 
+                type: 'bar', 
+                data: { 
+                    labels: ['A1', 'A2', 'A3', 'A4', 'A5'], 
+                    datasets: [{ label: 'Akurasi (%)', data: [100, 90, 80, 70, 85], backgroundColor: '#3f6b97' }] 
+                } 
+            });
+            chartInitialized = true;
+        }
+
+        function listenFirebaseRealtime() {
+            logsRef.limitToLast(10).on('value', (snapshot) => {
+                const sessionLogsTable = document.getElementById('sessionLogs');
+                sessionLogsTable.innerHTML = "";
+                const data = snapshot.val();
+                if (data) {
+                    const keys = Object.keys(data).reverse();
+                    keys.forEach((key) => {
+                        const item = data[key];
+                        sessionLogsTable.innerHTML += `<tr><td class="p-3">${item.time}</td><td class="p-3 font-black">${item.module}</td><td class="p-3 text-posterOrange">${item.accuracy}</td></tr>`;
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
