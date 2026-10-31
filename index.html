@@ -137,6 +137,11 @@
                         <div id="liveDetectionBox" class="hidden absolute top-4 left-4 bg-posterOrange text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white">
                             <span id="liveDetectedLabel">DETECTING...</span>
                         </div>
+                        
+                        <!-- TAMBAHAN: STATUS PERMAINAN -->
+                        <div id="gameStatusBox" class="hidden absolute top-4 right-4 bg-sky-500 text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white">
+                            <span id="gameStatusLabel">MENUNGGU JAWABAN...</span>
+                        </div>
                     </div>
                 </div>
 
@@ -251,25 +256,25 @@
         // 1. PEMETAAN LENGKAP MP3 (BERDASARKAN FOTO FOLDER KAMU: 001.mp3 - 022.mp3)
         // =========================================================================
         const AUDIO_MAP = {
-            "INTRO": "001.mp3",       // Salam pembuka Smart Buddy
-            "SOAL": "003.mp3",        // Pertanyaan / Touch 1
-            "PETUNJUK": "003.mp3",    // Petunjuk / Touch 2
-            "BENAR": "005.mp3",       // Jawaban Benar (Variasi 1)
-            "BENAR2": "007.mp3",      // Jawaban Benar (Variasi 2)
-            "HAMPIR": "009.mp3",      // Jawaban Hampir Betul
-            "MODE_ANGKA": "010.mp3",  // Mode Angka Aktif
-            "1": "011.mp3",           // Kartu Angka 1
-            "2": "012.mp3",           // Kartu Angka 2
-            "3": "013.mp3",           // Kartu Angka 3
-            "4": "014.mp3",           // Kartu Angka 4
-            "5": "015.mp3",           // Kartu Angka 5
-            "A": "016.mp3",           // Kartu Huruf A
-            "B": "017.mp3",           // Kartu Huruf B
-            "C": "018.mp3",           // Kartu Huruf C
-            "D": "019.mp3",           // Kartu Huruf D
-            "E": "020.mp3",           // Kartu Huruf E
-            "SALAH": "021.mp3",       // Jawaban Salah / Belum tepat
-            "SELESAI": "022.mp3"      // Penutup Selesai
+            "INTRO": "001.mp3",       
+            "SOAL": "003.mp3",        
+            "PETUNJUK": "003.mp3",    
+            "BENAR": "005.mp3",       
+            "BENAR2": "007.mp3",      
+            "HAMPIR": "009.mp3",      
+            "MODE_ANGKA": "010.mp3",  
+            "1": "011.mp3",           
+            "2": "012.mp3",           
+            "3": "013.mp3",           
+            "4": "014.mp3",           
+            "5": "015.mp3",           
+            "A": "016.mp3",           
+            "B": "017.mp3",           
+            "C": "018.mp3",           
+            "D": "019.mp3",           
+            "E": "020.mp3",           
+            "SALAH": "021.mp3",       
+            "SELESAI": "022.mp3"      
         };
 
         let globalAudio = new Audio();
@@ -296,7 +301,7 @@
         }
 
         // =========================================================================
-        // 2. FIREBASE REALTIME DATABASE LISTENER
+        // 2. FIREBASE REALTIME DATABASE LISTENER & GAME LOGIC
         // =========================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA7CyKCslPjQod0vu-uEZWQaZD0msZNQRw",
@@ -315,6 +320,10 @@
         const refKondisi = db.ref("/robot/kondisi");
 
         let counterBenar = 0;
+        
+        // VARIABEL GAME LOGIC
+        let jawabanBenar = "";
+        let statusMenjawab = false;
 
         // DENGERIN DATA MASUK DARI ESP32 / FIREBASE
         refKondisi.on('value', (snapshot) => {
@@ -326,6 +335,21 @@
 
             if (key === "SOAL") {
                 putarMp3(AUDIO_MAP["SOAL"]);
+                
+                // MENGATUR JAWABAN TARGET KETIKA TOUCH 1 DITEKAN
+                // Misalnya diset ke "4" (Bisa diubah/diacak nanti)
+                jawabanBenar = "4"; 
+                statusMenjawab = true; 
+                
+                const statusLabel = document.getElementById('gameStatusLabel');
+                const statusBox = document.getElementById('gameStatusBox');
+                if(statusBox) {
+                    statusBox.classList.remove('hidden');
+                    statusBox.classList.replace('bg-emerald-500', 'bg-sky-500');
+                    statusBox.classList.replace('bg-red-500', 'bg-sky-500');
+                    statusLabel.innerText = "🎯 Tunjukkan: " + jawabanBenar;
+                }
+
             } else if (key === "PETUNJUK") {
                 putarMp3(AUDIO_MAP["PETUNJUK"]);
             } else if (key === "BENAR") {
@@ -357,11 +381,12 @@
         }
 
         // =========================================================================
-        // 4. TEACHABLE MACHINE KAMERA
+        // 4. TEACHABLE MACHINE KAMERA & ANTI-LAG
         // =========================================================================
         let model, webcam, labelContainer, maxPredictions;
         let isCameraOn = false;
         let lastSyncedClass = "";
+        let aiCooldown = false; // Rem Anti-Lag
 
         async function initTeachableMachine() {
             putarMp3(AUDIO_MAP["INTRO"]);
@@ -403,7 +428,14 @@
         async function loop() {
             if (isCameraOn) {
                 webcam.update();
-                await predict();
+                
+                // ANTI-LAG: AI hanya memproses gambar 2 kali per detik (setiap 500ms)
+                if (!aiCooldown) {
+                    aiCooldown = true;
+                    await predict();
+                    setTimeout(() => { aiCooldown = false; }, 500); 
+                }
+                
                 window.requestAnimationFrame(loop);
             }
         }
@@ -433,13 +465,49 @@
             document.getElementById('accuracyBar').style.width = `${mainProbPercent}%`;
             document.getElementById('liveDetectedLabel').innerText = `${bestClass} (${mainProbPercent}%)`;
 
-            // Kirim ke Firebase jika deteksi sangat yakin (> 85%)
+            // EVALUASI JAWABAN (JIKA PROBABILITAS DI ATAS 85%)
             if (highestProb > 0.85 && bestClass !== lastSyncedClass) {
                 lastSyncedClass = bestClass;
                 
-                // Update kondisi Firebase agar ESP32 bereaksi
-                db.ref("/robot/kondisi").set(bestClass);
+                const statusBox = document.getElementById('gameStatusBox');
+                const statusLabel = document.getElementById('gameStatusLabel');
 
+                // Jika sedang ada soal yang aktif
+                if (statusMenjawab === true) {
+                    if (bestClass === jawabanBenar) {
+                        console.log("JAWABAN BENAR!");
+                        db.ref("/robot/kondisi").set("BENAR"); 
+                        statusMenjawab = false; // Kunci sistem biar gak double answer
+                        
+                        if(statusBox) {
+                            statusBox.classList.replace('bg-sky-500', 'bg-emerald-500');
+                            statusBox.classList.replace('bg-red-500', 'bg-emerald-500');
+                            statusLabel.innerText = "✅ BENAR!";
+                        }
+                    } else {
+                        console.log("JAWABAN SALAH!");
+                        db.ref("/robot/kondisi").set("SALAH");
+                        
+                        if(statusBox) {
+                            statusBox.classList.replace('bg-sky-500', 'bg-red-500');
+                            statusBox.classList.replace('bg-emerald-500', 'bg-red-500');
+                            statusLabel.innerText = "❌ SALAH!";
+                        }
+                        
+                        // Kembalikan teks target jawaban setelah 2 detik
+                        setTimeout(() => {
+                            if (statusMenjawab && statusBox) {
+                                statusBox.classList.replace('bg-red-500', 'bg-sky-500');
+                                statusLabel.innerText = "🎯 Coba Lagi: " + jawabanBenar;
+                            }
+                        }, 2000);
+                    }
+                } else {
+                    // Jika tidak ada soal, kirim hasil deteksi biasa ke Firebase
+                    db.ref("/robot/kondisi").set(bestClass);
+                }
+
+                // Catat Log ke Firebase
                 const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 logsRef.push({
                     time: `Realtime, ${now}`,
@@ -457,6 +525,7 @@
                 document.getElementById('webcam-container').innerHTML = "";
                 document.getElementById('placeholderView').classList.remove('hidden');
                 document.getElementById('liveDetectionBox').classList.add('hidden');
+                document.getElementById('gameStatusBox').classList.add('hidden');
             }
         }
 
