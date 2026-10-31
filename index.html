@@ -11,9 +11,7 @@
     <!-- TensorFlow.js & Teachable Machine -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -39,23 +37,36 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&display=swap');
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: #73b2dd;
         }
         .poster-glow {
             box-shadow: 0 10px 25px -5px rgba(30, 61, 96, 0.25);
         }
+        
+        /* Toggle Switch Custom */
+        .toggle-checkbox:checked { right: 0; border-color: #f3b21b; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #f3b21b; }
+        .toggle-checkbox { right: 50%; }
+        .toggle-label { background-color: #3f6b97; }
+        
+        /* Kamera canvas responsive */
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            border-radius: 1rem;
+        }
     </style>
 </head>
-<body class="text-posterNavy min-h-screen pb-12">
+<body id="appBody" class="text-posterNavy min-h-screen pb-12 bg-[#73b2dd] transition-colors duration-500">
 
-    <!-- OVERLAY POPUP UNLOCK AUDIO (SOLUSI CHROME AUTOPLAY) -->
+    <!-- OVERLAY POPUP UNLOCK AUDIO -->
     <div id="audioModal" onclick="unlockAudio()" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 cursor-pointer">
         <div class="bg-white border-4 border-posterOrange p-8 rounded-3xl max-w-md text-center shadow-2xl animate-bounce">
             <div class="w-16 h-16 bg-posterOrange text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <i data-lucide="volume-2" class="w-8 h-8"></i>
             </div>
             <h2 class="text-2xl font-black text-posterNavy mb-2">KLIK DI SINI DULU!</h2>
-            <p class="text-xs font-bold text-slate-500 mb-6">Google Chrome memerlukan 1 kali klik dari kamu agar laptop bisa mengeluarkan suara otomatis saat ESP32 tersambung.</p>
+            <p class="text-xs font-bold text-slate-500 mb-6">Google Chrome memerlukan 1 kali klik dari kamu agar laptop bisa mengeluarkan suara otomatis saat tersambung.</p>
             <button class="bg-posterOrange text-white font-black px-6 py-3 rounded-2xl text-sm shadow-md border-2 border-white">
                 Aktifkan Speaker Laptop 🔊
             </button>
@@ -63,12 +74,14 @@
     </div>
 
     <!-- Header Navigation -->
-    <header class="bg-[#5c9ecf] border-b-4 border-white/60 sticky top-0 z-50 shadow-md">
+    <header id="appHeader" class="bg-[#5c9ecf] border-b-4 border-white/60 sticky top-0 z-50 shadow-md transition-colors duration-500">
         <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap justify-between items-center gap-4">
             
+            <!-- KIRI: Logo -->
             <div class="flex items-center gap-3">
                 <div class="relative bg-white p-2.5 rounded-2xl shadow-md flex items-center justify-center cursor-pointer" onclick="putarMp3('001.mp3')">
                     <i data-lucide="crown" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                    <i data-lucide="sparkles" class="w-4 h-4 text-posterYellow absolute -top-1 -right-1 animate-pulse"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5">
@@ -79,60 +92,56 @@
                 </div>
             </div>
 
-            <div class="flex bg-posterDarkCard p-1.5 rounded-2xl shadow-inner border border-white/20">
-                <button id="btnTabAi" onclick="switchTab('ai')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 bg-white text-posterNavy shadow-md">
-                    <i data-lucide="camera" class="w-4 h-4 text-posterOrange"></i>
-                    Teachable Machine
-                </button>
-                <button id="btnTabDb" onclick="switchTab('db')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 text-white hover:text-posterYellow">
-                    <i data-lucide="database" class="w-4 h-4 text-posterYellow"></i>
-                    Firebase Realtime DB
-                </button>
+            <!-- KANAN: Toggle Mode Belajar/Kuis -->
+            <div class="flex bg-posterDarkCard p-1.5 rounded-2xl shadow-inner border border-white/20 items-center gap-2">
+                <span id="labelModeBelajar" class="text-xs sm:text-sm font-black text-white px-2 drop-shadow-md transition-all">
+                    📚 BELAJAR
+                </span>
+                
+                <div class="relative inline-block w-14 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="modeToggle" onchange="switchMode()" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer border-posterDarkCard z-10 transition-all duration-300"/>
+                    <label for="modeToggle" class="toggle-label block overflow-hidden h-7 rounded-full cursor-pointer transition-colors duration-300 shadow-inner border border-white/10"></label>
+                </div>
+                
+                <span id="labelModeMengingat" class="text-xs sm:text-sm font-bold text-blue-300 px-2 transition-all">
+                    🎯 KUIS
+                </span>
             </div>
+            
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 pt-6 space-y-6">
         
-        <!-- STATUS AUDIOPLAYER MONITOR -->
-        <div class="bg-white border-2 border-white p-4 rounded-2xl shadow-md flex items-center justify-between px-6">
-            <div class="flex items-center gap-3">
-                <i data-lucide="disc" class="w-6 h-6 text-posterOrange animate-spin"></i>
-                <div>
-                    <p class="text-[10px] font-black uppercase text-slate-400">Monitor Audio Realtime:</p>
-                    <p id="statusAudioLabel" class="text-xs font-black text-posterNavy">Siap memutar suara...</p>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="putarMp3('001.mp3')" class="bg-posterCard hover:bg-blue-200 text-posterNavy text-xs font-black px-3 py-1.5 rounded-xl border border-white shadow transition">
-                    Tes Intro
-                </button>
-                <button onclick="putarMp3('005.mp3')" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black px-3 py-1.5 rounded-xl border border-white shadow transition">
-                    Tes Benar
-                </button>
-            </div>
-        </div>
-
-        <!-- TAB 1: TEACHABLE MACHINE CAMERA TEST -->
+        <!-- TEACHABLE MACHINE CAMERA TEST -->
         <div id="tabAiVision" class="space-y-6">
+            <div class="text-center py-2 transition-all" id="mainTitleContainer">
+                <h2 class="text-2xl sm:text-3xl font-black text-white flex items-center justify-center gap-2 drop-shadow">
+                    <i data-lucide="sparkles" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                    Teachable Machine Camera Test
+                    <i data-lucide="sparkles" class="w-7 h-7 text-posterYellow fill-posterYellow"></i>
+                </h2>
+                <p class="text-xs sm:text-sm text-blue-100 font-bold mt-1">Deteksi Otomatis Kartu Angka (1–5) & Huruf (A–E) via Kamera Laptop</p>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div class="lg:col-span-7 bg-posterCard border-4 border-white rounded-3xl p-4 sm:p-6 shadow-xl poster-glow">
+                <!-- Card Kamera -->
+                <div class="lg:col-span-7 bg-posterCard border-4 border-white rounded-3xl p-4 sm:p-6 shadow-xl poster-glow transition-colors duration-500">
                     <div class="relative w-full aspect-video bg-posterDarkCard rounded-2xl overflow-hidden border-2 border-white/80 flex items-center justify-center">
-                        <div id="webcam-container" class="w-full h-full flex items-center justify-center [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:object-cover"></div>
-                        <div id="placeholderView" class="text-center p-6 text-white absolute">
+                        <div id="webcam-container" class="w-full h-full flex items-center justify-center bg-black"></div>
+                        <div id="placeholderView" class="text-center p-6 text-white absolute inset-0 flex flex-col items-center justify-center">
                             <i data-lucide="sparkles" class="w-12 h-12 text-posterYellow mx-auto mb-2 animate-bounce"></i>
                             <p class="font-extrabold text-base sm:text-lg">Kamera belum aktif</p>
+                            <p class="text-xs text-blue-100 mt-1">Masukkan URL model Teachable Machine lalu tekan 'Nyalakan kamera'</p>
                         </div>
-                        <div id="liveDetectionBox" class="hidden absolute top-4 left-4 bg-posterOrange text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white">
-                            <span id="liveDetectedLabel">DETECTING...</span>
-                        </div>
-                        <div id="gameStatusBox" class="hidden absolute top-4 right-4 bg-sky-500 text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white">
-                            <span id="gameStatusLabel">MENUNGGU JAWABAN...</span>
+                        <div id="liveDetectionBox" class="hidden absolute top-4 left-4 bg-posterOrange text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white z-10">
+                            <span id="liveDetectedLabel">📚 MODE BELAJAR AKTIF</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="lg:col-span-5 space-y-4 bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow">
+                <!-- Card Status & Kontrol -->
+                <div class="lg:col-span-5 space-y-4 bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow transition-colors duration-500">
                     <div id="modelStatusBox" class="w-full bg-white border-2 border-[#b3d6f1] rounded-2xl py-3 px-4 text-center font-extrabold text-posterNavy text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm">
                         <i data-lucide="crown" class="w-5 h-5 text-posterYellow fill-posterYellow"></i>
                         <span>Model belum dimuat</span>
@@ -142,7 +151,7 @@
                         <div class="flex justify-between text-xs sm:text-sm font-extrabold text-posterNavy mb-2">
                             <span class="flex items-center gap-1.5">
                                 <i data-lucide="sparkles" class="w-4 h-4 text-posterYellow fill-posterYellow"></i>
-                                Akurasi Deteksi AI:
+                                Akurasi AI Tertinggi:
                             </span>
                             <span id="accuracyPercent" class="text-posterOrange">0%</span>
                         </div>
@@ -170,56 +179,13 @@
                 </div>
             </div>
 
-            <div class="bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow">
+            <!-- Card Rincian -->
+            <div class="bg-posterCard border-4 border-white rounded-3xl p-5 shadow-xl poster-glow transition-colors duration-500">
+                <h3 class="text-sm font-black text-posterNavy mb-3 flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 text-posterOrange"></i>
+                    Rincian Deteksi Kartu (Persentase):
+                </h3>
                 <div id="label-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"></div>
-            </div>
-        </div>
-
-        <!-- TAB 2: FIREBASE DATABASE MONITOR -->
-        <div id="tabParentDb" class="hidden space-y-6">
-            <div class="bg-white border-4 border-white p-4 sm:p-5 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4 poster-glow">
-                <div class="flex items-center gap-3">
-                    <div class="bg-posterCard p-3 rounded-2xl text-posterNavy">
-                        <i data-lucide="radio" class="w-7 h-7 animate-pulse text-posterOrange"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-black text-base sm:text-lg text-posterNavy flex items-center gap-2">
-                            Status Database: <span id="dbStatusBadge" class="text-emerald-600 font-black">Online 🟢</span>
-                        </h3>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="db.ref('/robot/kondisi').set('SOAL')" class="bg-posterDarkCard text-white text-xs font-black px-3 py-2 rounded-xl">Test Touch 1</button>
-                    <button onclick="db.ref('/robot/kondisi').set('PETUNJUK')" class="bg-posterDarkCard text-white text-xs font-black px-3 py-2 rounded-xl">Test Touch 2</button>
-                    <button onclick="db.ref('/robot/kondisi').set('BENAR')" class="bg-emerald-500 text-white text-xs font-black px-3 py-2 rounded-xl">Test BENAR</button>
-                    <button onclick="db.ref('/robot/kondisi').set('SALAH')" class="bg-red-500 text-white text-xs font-black px-3 py-2 rounded-xl">Test SALAH</button>
-                    <button onclick="resetData()" class="bg-red-600 text-white text-xs font-black px-3 py-2 rounded-xl shadow-sm hover:bg-red-700">🗑️ Reset Logs</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-posterCard border-4 border-white p-4 sm:p-6 rounded-3xl shadow-xl poster-glow">
-                    <h3 class="font-black text-posterNavy flex items-center gap-2 mb-4 text-sm sm:text-base">
-                        <i data-lucide="database" class="w-5 h-5 text-posterOrange"></i>
-                        Tabel Live Log Firebase
-                    </h3>
-                    <div class="overflow-x-auto bg-white rounded-2xl border-2 border-blue-100 p-2 h-64 overflow-y-auto">
-                        <table class="w-full text-left text-xs sm:text-sm">
-                            <tbody id="sessionLogs" class="divide-y divide-blue-100 text-posterNavy font-bold"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="bg-posterCard border-4 border-white p-4 sm:p-6 rounded-3xl shadow-xl poster-glow">
-                    <h3 class="font-black text-posterNavy flex items-center gap-2 mb-4 text-sm sm:text-base">
-                        <i data-lucide="bar-chart-2" class="w-5 h-5 text-posterOrange"></i>
-                        Grafik Akurasi
-                    </h3>
-                    <div class="relative w-full aspect-[16/9] sm:aspect-[2/1] bg-white p-3 rounded-2xl border-2 border-blue-100">
-                        <canvas id="masteryChart"></canvas>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -228,11 +194,13 @@
     <script>
         lucide.createIcons();
 
-        // 1. PEMETAAN LENGKAP MP3
+        // =========================================================================
+        // 1. PEMETAAN LENGKAP MP3 
+        // =========================================================================
         const AUDIO_MAP = {
             "INTRO": "001.mp3",       
             "SOAL": "003.mp3",        
-            "PETUNJUK": "004.mp3", // Sesuai urutan logismu, pastikan ini tidak sama dengan soal jika beda
+            "PETUNJUK": "003.mp3",    
             "BENAR": "005.mp3",       
             "BENAR2": "007.mp3",      
             "HAMPIR": "009.mp3",      
@@ -252,234 +220,259 @@
         };
 
         let globalAudio = new Audio();
-        let isAudioUnlocked = false;
 
         function putarMp3(namaFile) {
-            if (!isAudioUnlocked) return;
-            const label = document.getElementById('statusAudioLabel');
-            label.innerText = "🔊 Memutar File: " + namaFile;
-
             globalAudio.pause();
             globalAudio.currentTime = 0;
             globalAudio.src = namaFile;
-
             globalAudio.play().catch(err => {
                 console.error("Gagal putar audio:", err);
-                label.innerText = "❌ File " + namaFile + " tidak ditemukan / terblokir!";
             });
         }
 
         function unlockAudio() {
-            isAudioUnlocked = true;
             putarMp3(AUDIO_MAP["INTRO"]);
             document.getElementById('audioModal').classList.add('hidden');
         }
 
-        // 2. FIREBASE REALTIME DATABASE LISTENER (DI-FIX SINKRONISASI & GHOST AUDIO)
+        // =========================================================================
+        // 2. FIREBASE REALTIME DATABASE & MODE SWITCHER LOGIC
+        // =========================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA7CyKCslPjQod0vu-uEZWQaZD0msZNQRw",
             authDomain: "smart-little-buddy-sgdrc.firebaseapp.com",
             databaseURL: "https://smart-little-buddy-sgdrc-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "smart-little-buddy-sgdrc",
-            storageBucket: "smart-little-buddy-sgdrc.firebasestorage.app",
-            messagingSenderId: "252258897796",
-            appId: "1:252258897796:web:ea72e344f005bc2619d7d1",
-            measurementId: "G-P627MDRYXG"
+            projectId: "smart-little-buddy-sgdrc"
         };
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const logsRef = db.ref("learning_sessions");
         const refKondisi = db.ref("/robot/kondisi");
 
         let counterBenar = 0;
-        let jawabanBenar = "";
-        let statusMenjawab = false;
+        let currentMode = "BELAJAR";
+        let targetKuis = "";
+        let isKuisAktif = false;
+        let predictCooldown = false;
 
+        function switchMode() {
+            const toggle = document.getElementById('modeToggle');
+            const labelBelajar = document.getElementById('labelModeBelajar');
+            const labelMengingat = document.getElementById('labelModeMengingat');
+            const detectionLabel = document.getElementById('liveDetectedLabel');
+            
+            const appBody = document.getElementById('appBody');
+            const appHeader = document.getElementById('appHeader');
+
+            if (toggle.checked) {
+                currentMode = "MENGINGAT";
+                db.ref("/robot/mode").set("MENGINGAT"); 
+                
+                labelBelajar.className = "text-xs sm:text-sm font-bold text-blue-300 px-2 transition-all";
+                labelMengingat.className = "text-xs sm:text-sm font-black text-white px-2 drop-shadow-md transition-all";
+                
+                putarMp3(AUDIO_MAP["MODE_ANGKA"]); 
+                detectionLabel.innerText = "🎯 KUIS: Sentuh Kepala Robot!";
+                detectionLabel.parentElement.className = "hidden absolute top-4 left-4 bg-posterNavy text-posterYellow font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-posterYellow transition-all z-10";
+                if(isCameraOn) detectionLabel.parentElement.classList.remove('hidden');
+                
+                appBody.classList.replace('bg-[#73b2dd]', 'bg-[#1e3d60]');
+                appHeader.classList.replace('bg-[#5c9ecf]', 'bg-[#3f6b97]');
+                appHeader.classList.replace('border-white/60', 'border-posterYellow');
+                
+            } else {
+                currentMode = "BELAJAR";
+                db.ref("/robot/mode").set("BELAJAR");
+                
+                labelBelajar.className = "text-xs sm:text-sm font-black text-white px-2 drop-shadow-md transition-all";
+                labelMengingat.className = "text-xs sm:text-sm font-bold text-blue-300 px-2 transition-all";
+                
+                isKuisAktif = false;
+                detectionLabel.innerText = "📚 MODE BELAJAR AKTIF";
+                detectionLabel.parentElement.className = "hidden absolute top-4 left-4 bg-posterOrange text-white font-black text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-lg border-2 border-white transition-all z-10";
+                if(isCameraOn) detectionLabel.parentElement.classList.remove('hidden');
+                
+                appBody.classList.replace('bg-[#1e3d60]', 'bg-[#73b2dd]');
+                appHeader.classList.replace('bg-[#3f6b97]', 'bg-[#5c9ecf]');
+                appHeader.classList.replace('border-posterYellow', 'border-white/60');
+            }
+        }
+
+        // ESP32 Listener
         refKondisi.on('value', (snapshot) => {
             const val = snapshot.val();
             if (!val) return;
 
             const key = String(val).toUpperCase().trim();
-            if (key === "STANDBY") return; // Abaikan status netral agar tidak loop
-
-            console.log("📩 Firebase Kondisi Masuk:", key);
+            if (key === "STANDBY") return;
 
             if (key === "SOAL") {
-                putarMp3(AUDIO_MAP["SOAL"]);
-                jawabanBenar = "4"; // Sementara diset 4, bisa diacak dengan Math.random nanti
-                statusMenjawab = true; 
-                
-                const statusBox = document.getElementById('gameStatusBox');
-                statusBox.classList.remove('hidden');
-                statusBox.classList.replace('bg-emerald-500', 'bg-sky-500');
-                statusBox.classList.replace('bg-red-500', 'bg-sky-500');
-                document.getElementById('gameStatusLabel').innerText = "🎯 Tunjukkan: " + jawabanBenar;
-
-                // Reset status di Firebase jadi STANDBY agar bisa dipencet lagi
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (key === "PETUNJUK") {
-                putarMp3(AUDIO_MAP["PETUNJUK"]);
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (key === "BENAR") {
-                putarMp3(counterBenar === 0 ? AUDIO_MAP["BENAR"] : AUDIO_MAP["BENAR2"]);
-                counterBenar = (counterBenar + 1) % 2;
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (key === "SALAH") {
-                putarMp3(AUDIO_MAP["SALAH"]);
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (key === "HAMPIR") {
-                putarMp3(AUDIO_MAP["HAMPIR"]);
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (key === "SELESAI") {
-                putarMp3(AUDIO_MAP["SELESAI"]);
-                setTimeout(() => { db.ref("/robot/kondisi").set("STANDBY"); }, 1500);
-
-            } else if (AUDIO_MAP[key]) {
-                // BLOKIR GHOST AUDIO: Hanya putar suara kalau bukan AI web ini yang ngirim kartunya
-                if (key !== lastSyncedClass) {
-                    putarMp3(AUDIO_MAP[key]);
+                if (currentMode === "MENGINGAT") {
+                    putarMp3(AUDIO_MAP["SOAL"]);
+                    const daftarTarget = ["1", "2", "3", "4", "5", "A", "B", "C", "D", "E"];
+                    targetKuis = daftarTarget[Math.floor(Math.random() * daftarTarget.length)];
+                    isKuisAktif = true;
+                    document.getElementById("liveDetectedLabel").innerText = "🎯 CARI KARTU: " + targetKuis;
+                } else {
+                    putarMp3(AUDIO_MAP["INTRO"]);
                 }
+                setTimeout(() => db.ref("/robot/kondisi").set("STANDBY"), 1000);
+            } 
+            else if (key === "PETUNJUK") {
+                putarMp3(AUDIO_MAP["PETUNJUK"]);
+                setTimeout(() => db.ref("/robot/kondisi").set("STANDBY"), 1000);
             }
         });
 
-        // 3. TAB SWITCHING
-        function switchTab(tab) {
-            document.getElementById('tabAiVision').classList.toggle('hidden', tab !== 'ai');
-            document.getElementById('tabParentDb').classList.toggle('hidden', tab !== 'db');
-            if (tab === 'db') {
-                initChart();
-                listenFirebaseRealtime();
-            }
-        }
-
-        // 4. TEACHABLE MACHINE KAMERA (FIX ANTI-LAG)
+        // =========================================================================
+        // 3. TEACHABLE MACHINE KAMERA (FIXED FREEZE ISSUE)
+        // =========================================================================
         let model, webcam, labelContainer, maxPredictions;
         let isCameraOn = false;
         let lastSyncedClass = "";
 
         async function initTeachableMachine() {
+            if (isCameraOn) return; // Mencegah double klik init
+            
+            putarMp3(AUDIO_MAP["INTRO"]);
+
             let modelURLInput = document.getElementById('modelUrlInput').value.trim();
             if (!modelURLInput) return alert("Masukkan URL!");
             if (!modelURLInput.endsWith('/')) modelURLInput += '/';
 
-            document.getElementById('modelStatusBox').innerText = "Memuat model AI...";
+            const statusBox = document.getElementById('modelStatusBox');
+            statusBox.innerHTML = `Memuat model AI...`;
 
             try {
                 model = await tmImage.load(modelURLInput + "model.json", modelURLInput + "metadata.json");
                 maxPredictions = model.getTotalClasses();
-                webcam = new tmImage.Webcam(400, 300, true); 
+                
+                // Gunakan resolusi proporsional untuk webcam
+                webcam = new tmImage.Webcam(640, 480, true); 
                 await webcam.setup(); 
                 await webcam.play();
                 
                 isCameraOn = true;
-                
-                // Pisahkan jalur update video (mulus 60FPS) dan AI (mikir perlahan tiap 0.5 detik)
-                window.requestAnimationFrame(webcamLoop);
-                runAIPredictionLoop();
 
                 document.getElementById('placeholderView').classList.add('hidden');
-                document.getElementById('webcam-container').appendChild(webcam.canvas);
+                const webcamContainer = document.getElementById('webcam-container');
+                webcamContainer.innerHTML = "";
+                webcamContainer.appendChild(webcam.canvas);
                 
                 labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = "";
+                
+                // Siapkan template rincian kartu
                 for (let i = 0; i < maxPredictions; i++) {
                     const classCard = document.createElement("div");
-                    classCard.className = "bg-white p-2.5 rounded-2xl text-xs font-bold border border-blue-100 shadow-sm";
+                    classCard.className = "bg-white p-3 rounded-2xl border-2 border-blue-100 shadow-sm transition-all";
                     labelContainer.appendChild(classCard);
                 }
 
                 document.getElementById('liveDetectionBox').classList.remove('hidden');
-                document.getElementById('modelStatusBox').innerText = "Model AI Berhasil Dimuat!";
+                statusBox.innerText = "Model AI Berhasil Dimuat!";
+                
+                // Mulai looping secara independen dan anti-freeze
+                window.requestAnimationFrame(loop);
+                
             } catch (err) {
-                alert("Gagal memuat model. Pastikan link Teachable Machine benar.");
+                console.error(err);
+                alert("Gagal memuat model Teachable Machine. Pastikan URL benar dan izinkan akses kamera!");
+                statusBox.innerText = "Gagal memuat model";
             }
         }
 
-        function webcamLoop() {
-            if (isCameraOn) {
-                webcam.update(); 
-                window.requestAnimationFrame(webcamLoop);
+        // Dibuat lebih stabil agar requestAnimationFrame tidak tertahan proses predict()
+        async function loop() {
+            if (!isCameraOn) return;
+            
+            try {
+                webcam.update(); // Panggil gambar kamera terbaru
+                await predict(); // Prediksi menggunakan gambar tadi
+            } catch (err) {
+                console.error("Kesalahan saat prediksi/kamera:", err);
             }
-        }
-
-        async function runAIPredictionLoop() {
-            if (isCameraOn) {
-                await predict();
-                setTimeout(runAIPredictionLoop, 500); 
-            }
+            
+            window.requestAnimationFrame(loop); 
         }
 
         async function predict() {
+            if (!model || !webcam.canvas) return;
+
             const prediction = await model.predict(webcam.canvas);
             let highestProb = 0;
             let bestClass = "";
 
             for (let i = 0; i < maxPredictions; i++) {
-                if (prediction[i].probability > highestProb) {
-                    highestProb = prediction[i].probability;
+                let probValue = prediction[i].probability;
+                let probPercent = (probValue * 100).toFixed(0);
+                
+                // Hitung kemungkinan tertinggi
+                if (probValue > highestProb) {
+                    highestProb = probValue;
                     bestClass = prediction[i].className;
                 }
                 
-                const probPercent = (prediction[i].probability * 100).toFixed(0);
-                labelContainer.childNodes[i].innerHTML = `
-                    <div class="flex justify-between font-black text-posterNavy mb-1">
-                        <span>Class: ${prediction[i].className}</span>
-                        <span class="text-posterOrange">${probPercent}%</span>
-                    </div>
-                `;
+                // Render teks rincian sesuai permintaan ("angka 1: 1% ke detech gitu")
+                if (labelContainer.childNodes[i]) {
+                    labelContainer.childNodes[i].innerHTML = `
+                        <div class="flex flex-col font-black text-posterNavy">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-sm">${prediction[i].className}</span>
+                                <span class="text-posterOrange text-sm">${probPercent}%</span>
+                            </div>
+                            <div class="w-full bg-blue-100 h-2.5 rounded-full overflow-hidden mb-1">
+                                <div class="bg-posterOrange h-full rounded-full transition-all duration-75" style="width: ${probPercent}%"></div>
+                            </div>
+                            <span class="text-[10px] text-slate-500 leading-tight">
+                                ${prediction[i].className}: ${probPercent}% terdeteksi
+                            </span>
+                        </div>
+                    `;
+                }
             }
 
+            // Render akurasi terbaik di panel samping
             const mainProbPercent = (highestProb * 100).toFixed(0);
             document.getElementById('accuracyPercent').innerText = `${mainProbPercent}%`;
             document.getElementById('accuracyBar').style.width = `${mainProbPercent}%`;
-            document.getElementById('liveDetectedLabel').innerText = `${bestClass} (${mainProbPercent}%)`;
 
-            // Proses Jawaban AI
-            if (highestProb > 0.85 && bestClass !== lastSyncedClass) {
-                lastSyncedClass = bestClass;
+            // Mencegah tembakan data berulang ke Firebase
+            if (highestProb > 0.85 && !predictCooldown) {
                 
-                const statusBox = document.getElementById('gameStatusBox');
-                const statusLabel = document.getElementById('gameStatusLabel');
+                if (currentMode === "BELAJAR" && bestClass !== lastSyncedClass) {
+                    lastSyncedClass = bestClass;
+                    predictCooldown = true;
+                    
+                    document.getElementById('liveDetectedLabel').innerText = `✨ Terdeteksi Kartu: ${bestClass}`;
+                    db.ref("/robot/kondisi").set(bestClass);
+                    
+                    if (AUDIO_MAP[bestClass]) putarMp3(AUDIO_MAP[bestClass]);
 
-                if (statusMenjawab === true) {
-                    if (bestClass === jawabanBenar) {
-                        db.ref("/robot/kondisi").set("BENAR"); 
-                        statusMenjawab = false; 
+                    setTimeout(() => { predictCooldown = false; }, 2000);
+                } 
+                else if (currentMode === "MENGINGAT" && isKuisAktif) {
+                    predictCooldown = true;
+                    
+                    if (bestClass === targetKuis) {
+                        db.ref("/robot/kondisi").set("BENAR");
+                        putarMp3(counterBenar === 0 ? AUDIO_MAP["BENAR"] : AUDIO_MAP["BENAR2"]);
+                        counterBenar = (counterBenar + 1) % 2;
                         
-                        statusBox.classList.replace('bg-sky-500', 'bg-emerald-500');
-                        statusBox.classList.replace('bg-red-500', 'bg-emerald-500');
-                        statusLabel.innerText = "✅ BENAR!";
+                        document.getElementById('liveDetectedLabel').innerText = `🎉 Yey Benar! Itu ${bestClass}`;
+                        isKuisAktif = false;
                     } else {
                         db.ref("/robot/kondisi").set("SALAH");
+                        putarMp3(AUDIO_MAP["SALAH"]);
                         
-                        statusBox.classList.replace('bg-sky-500', 'bg-red-500');
-                        statusBox.classList.replace('bg-emerald-500', 'bg-red-500');
-                        statusLabel.innerText = "❌ SALAH!";
-                        
-                        // Balikkan teks ke target soal jika anak ingin mencoba lagi
-                        setTimeout(() => {
-                            if (statusMenjawab) {
-                                statusBox.classList.replace('bg-red-500', 'bg-sky-500');
-                                statusLabel.innerText = "🎯 Coba Lagi: " + jawabanBenar;
-                            }
-                        }, 2500);
+                        document.getElementById('liveDetectedLabel').innerText = `❌ Salah! Itu ${bestClass}`;
                     }
-                } else {
-                    db.ref("/robot/kondisi").set(bestClass);
-                }
 
-                // Kirim log riwayat belajar
-                logsRef.push({
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    module: `Card ${bestClass}`,
-                    accuracy: `${mainProbPercent}%`
-                });
+                    setTimeout(() => { 
+                        predictCooldown = false; 
+                        if(isKuisAktif) document.getElementById('liveDetectedLabel').innerText = "🎯 CARI KARTU: " + targetKuis;
+                    }, 2500);
+                }
             }
         }
 
@@ -488,53 +481,19 @@
                 putarMp3(AUDIO_MAP["SELESAI"]);
                 webcam.stop();
                 isCameraOn = false;
+                
                 document.getElementById('webcam-container').innerHTML = "";
                 document.getElementById('placeholderView').classList.remove('hidden');
                 document.getElementById('liveDetectionBox').classList.add('hidden');
-                document.getElementById('gameStatusBox').classList.add('hidden');
-            }
-        }
-
-        // 5. CHART & LOGS
-        let chartInitialized = false;
-        let myChart; 
-
-        function initChart() {
-            if (chartInitialized) return;
-            const ctx = document.getElementById('masteryChart').getContext('2d');
-            myChart = new Chart(ctx, { 
-                type: 'bar', 
-                data: { 
-                    labels: ['A1', 'A2', 'A3', 'A4', 'A5'], 
-                    datasets: [{ label: 'Akurasi (%)', data: [100, 90, 80, 70, 85], backgroundColor: '#3f6b97' }] 
-                } 
-            });
-            chartInitialized = true;
-        }
-
-        function listenFirebaseRealtime() {
-            logsRef.limitToLast(10).on('value', (snapshot) => {
-                const sessionLogsTable = document.getElementById('sessionLogs');
-                sessionLogsTable.innerHTML = "";
-                const data = snapshot.val();
-                if (data) {
-                    Object.keys(data).reverse().forEach((key) => {
-                        const item = data[key];
-                        sessionLogsTable.innerHTML += `<tr><td class="p-3">${item.time}</td><td class="p-3 font-black">${item.module}</td><td class="p-3 text-posterOrange">${item.accuracy}</td></tr>`;
-                    });
-                }
-            });
-        }
-
-        function resetData() {
-            if(confirm("Apakah kamu yakin ingin menghapus semua riwayat Firebase dan mereset grafik?")) {
-                logsRef.remove().then(() => {
-                    console.log("Riwayat berhasil dihapus.");
-                });
-
-                if (myChart) {
-                    myChart.data.datasets[0].data = [0, 0, 0, 0, 0];
-                    myChart.update();
+                
+                // Reset progress UI
+                document.getElementById('accuracyPercent').innerText = `0%`;
+                document.getElementById('accuracyBar').style.width = `0%`;
+                
+                if (labelContainer) {
+                    for(let i=0; i<labelContainer.childNodes.length; i++){
+                        labelContainer.childNodes[i].innerHTML = "";
+                    }
                 }
             }
         }
